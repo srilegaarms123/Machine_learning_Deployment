@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 
 from flask import Flask, jsonify, request
+from flask import render_template_string
 import joblib
 import pandas as pd
 import numpy as np
@@ -30,11 +31,117 @@ except Exception as exc:
 
 @app.get("/")
 def home():
-    return jsonify({
-        "message": "Country Prediction API is active.",
-        "expected_features": features
-    })
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Country Prediction</title>
+        <style>
+            body {
+                font-family: Arial;
+                background: #f0f2f5;
+                padding: 40px;
+            }
+            .container {
+                background: white;
+                padding: 30px;
+                max-width: 400px;
+                margin: auto;
+                border-radius: 12px;
+            }
+            input {
+                width: 100%;
+                padding: 12px;
+                margin: 10px 0;
+                box-sizing: border-box;
+            }
+            button {
+                width: 100%;
+                padding: 12px;
+                background: #2563eb;
+                color: white;
+                border: none;
+                cursor: pointer;
+            }
+            #result {
+                margin-top: 20px;
+                font-weight: bold;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Country Prediction System</h2>
 
+            <form id="predictionForm">
+                <label>Quantity</label>
+                <input type="number" step="any"
+                       name="Quantity" required>
+
+                <label>Unit Price</label>
+                <input type="number" step="any"
+                       name="UnitPrice" required>
+
+                <label>Customer ID</label>
+                <input type="number" step="any"
+                       name="CustomerID" required>
+
+                <button type="submit">Predict Country</button>
+            </form>
+
+            <div id="result"></div>
+        </div>
+
+        <script>
+            document.getElementById("predictionForm")
+            .addEventListener("submit", async function(e) {
+                e.preventDefault();
+
+                const form = new FormData(this);
+
+                const data = {
+                    Quantity: Number(form.get("Quantity")),
+                    UnitPrice: Number(form.get("UnitPrice")),
+                    CustomerID: Number(form.get("CustomerID"))
+                };
+
+                const result = document.getElementById("result");
+                result.innerText = "Predicting...";
+
+                try {
+                    const response = await fetch("/predict", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(data)
+                    });
+
+                    const output = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(output.error || "Prediction failed");
+                    }
+
+                    result.innerHTML =
+                        "<h3>Predicted Country: " +
+                        output.prediction + "</h3>";
+
+                    if (output.confidence !== undefined) {
+                        result.innerHTML +=
+                            "<p>Confidence: " +
+                            (output.confidence * 100).toFixed(2) +
+                            "%</p>";
+                    }
+
+                } catch (error) {
+                    result.innerText = "Error: " + error.message;
+                }
+            });
+        </script>
+    </body>
+    </html>
+    """)
 
 @app.get("/health")
 def health():
